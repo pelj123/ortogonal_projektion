@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ortogonal projektion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: lugn, tydlig lärare – en sak i taget, ingen dekoration som stjäl fokus
+   IDEA: ett rutat matteblock där man ritar med linjal, och en ficklampa som lyser ner på linjen
+   PICTURE: det dragbara koordinatsystemet, stort, med u, v, skugga och rät vinkel
+   COLOUR and TYPE: vitt rutpapper, blått u, grönt v, rött proj, grått u⊥, gult ljus; Lexend + Atkinson Hyperlegible
+   LAYOUT: graf till vänster, live-uträkning till höger, utmaningar i ett band under; staplas på smal skärm */
+:root{color-scheme:light dark;
+--bg:light-dark(#ffffff,#0d131b);--ink:light-dark(#141a22,#e7edf5);--mut:light-dark(#5b6676,#9aa6b6);
+--paper:light-dark(#fbfdff,#101924);--grid:light-dark(#e3eaf3,#1b2634);--axis:light-dark(#8592a3,#5d6b7d);
+--line:light-dark(#d5dde8,#243245);--card:light-dark(#f3f6fa,#141e2a);
+--u:light-dark(#1d5bd6,#6ea0ff);--v:light-dark(#0f7d47,#4fd18b);--p:light-dark(#d12f2a,#ff6b5f);--q:light-dark(#6b7280,#a3adbb);
+--lamp:light-dark(#e9a800,#ffd04d);--shade:light-dark(rgba(20,26,34,.13),rgba(0,0,0,.45));--ok:light-dark(#0f7d47,#4fd18b)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16.5px/1.55 "Atkinson Hyperlegible",system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:Lexend,system-ui,sans-serif;font-weight:600;line-height:1.1;margin:0}
+h1{font-size:clamp(30px,4.4vw,46px);text-wrap:balance}
+h2{font-size:22px;margin-bottom:12px}h3{font-size:17px}
+.band{padding:clamp(22px,3.5vw,48px) max(4vw,16px)}
+.wrap{max-width:1240px;margin:0 auto}
+.lead{color:var(--mut);max-width:68ch;margin:10px 0 0}
+.main{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:clamp(18px,3vw,40px);align-items:start;margin-top:22px}
+@media(max-width:900px){.main{grid-template-columns:minmax(0,1fr)}}
+.plot{background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden;touch-action:none}
+.plot svg{display:block;width:100%;height:auto;user-select:none}
+.bar{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+button{font:600 15px Lexend,system-ui,sans-serif;min-height:44px;padding:0 16px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button[aria-pressed=true]{background:var(--lamp);border-color:var(--lamp);color:#1a1400}
+button:focus-visible,.h:focus-visible{outline:3px solid var(--u);outline-offset:2px}
+.hint{color:var(--mut);font-size:14px;margin:10px 0 0}
+.panel{display:grid;gap:14px}
+.box{background:var(--card);border-radius:14px;padding:16px 18px}
+.row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:4px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border:0}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:700}
+.calc{font-variant-numeric:tabular-nums;margin:6px 0;overflow-wrap:anywhere}
+.step{font:600 13px Lexend,sans-serif;color:var(--mut);margin-bottom:4px}
+.say{margin:8px 0 0;padding:10px 12px;border-radius:10px;background:var(--bg);border-left:4px solid var(--p)}
+.cu{color:var(--u)}.cv{color:var(--v)}.cp{color:var(--p)}.cq{color:var(--q)}
+.final{font:600 clamp(22px,3vw,28px) Lexend,sans-serif;color:var(--p);font-variant-numeric:tabular-nums}
+.ch{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media(max-width:820px){.ch{grid-template-columns:minmax(0,1fr)}}
+.c{display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;background:var(--card);border-radius:14px;padding:16px;border:2px solid transparent;transition:border-color .3s}
+.c.done{border-color:var(--ok)}
+.tick{width:32px;height:32px;border-radius:50%;border:2.5px solid var(--axis);display:grid;place-items:center;color:#fff;font-weight:700}
+.done .tick{background:var(--ok);border-color:var(--ok);animation:pop .35s ease}
+.c p{margin:6px 0 0;font-size:15px}.live{font-size:14px;color:var(--mut);margin-top:6px}
+.yay{margin-top:14px;font:600 18px Lexend,sans-serif;color:var(--ok)}
+@keyframes pop{0%{transform:scale(.6)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.lbl{font:600 17px Lexend,sans-serif;paint-order:stroke;stroke:var(--paper);stroke-width:5px;stroke-linejoin:round}
+.tk{font:13px "Atkinson Hyperlegible",sans-serif;fill:var(--mut)}
+.h{cursor:grab}.h:active{cursor:grabbing}
+</style>
+</head>
+<body>
+<div class="band"><div class="wrap">
+  <h1>Ortogonal projektion: skuggan av u på v</h1>
+  <p class="lead">Dra i spetsarna på den blå vektorn <b class="cu">u</b> och den gröna vektorn <b class="cv">v</b>. Den röda vektorn är projektionen proj<sub>v</sub>(u) – den del av u som går längs v. Den grå streckade delen är det som blir kvar, och den står alltid vinkelrätt mot v.</p>
+  <style>
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:12px;padding:3px;gap:3px;background:var(--card);margin-bottom:10px}
+.seg button{border:0;min-height:40px;padding:0 18px;background:transparent}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.inp{display:grid;grid-template-columns:auto repeat(3,minmax(0,1fr));gap:8px 10px;align-items:center;margin-top:14px;max-width:460px}
+.inp label{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--mut)}
+.inp input{width:100%;font:16px "Atkinson Hyperlegible",sans-serif;min-height:40px;padding:0 8px;border-radius:8px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-variant-numeric:tabular-nums}
+.inp input:focus-visible{outline:3px solid var(--u);outline-offset:1px}
+.is2d .z3{display:none}.is2d .inp{grid-template-columns:auto repeat(2,minmax(0,1fr));max-width:330px}
+.is2d .only3{display:none}
+.plot.rot{cursor:grab}
+</style>
+  <div class="main is2d" id="root">
+    <div>
+      <div class="seg" role="group" aria-label="Välj vy"><button id="b2" aria-pressed="true">2D</button><button id="b3" aria-pressed="false">3D</button></div>
+      <div class="plot" id="plot"><svg id="g" viewBox="-260 -260 520 520" role="img" aria-label="Koordinatsystem med vektorerna u och v och projektionen av u på v"></svg></div>
+      <div class="bar">
+        <button id="bLamp" aria-pressed="false">Visa ficklampa/skugga</button>
+        <button id="bSnap" aria-pressed="true">Fäst mot rutnätet: på</button>
+        <button id="bZ" class="only3" aria-pressed="false">Dra i: xy-planet</button>
+        <button id="bView" class="only3">Återställ vy</button>
+        <button id="bReset">Återställ vektorer</button>
+      </div>
+      <p class="hint" id="hint"></p>
+      <div class="inp">
+        <b class="cu">u</b><label>x <input id="iux" type="number" step="0.5"></label><label>y <input id="iuy" type="number" step="0.5"></label><label class="z3">z <input id="iuz" type="number" step="0.5"></label>
+        <b class="cv">v</b><label>x <input id="ivx" type="number" step="0.5"></label><label>y <input id="ivy" type="number" step="0.5"></label><label class="z3">z <input id="ivz" type="number" step="0.5"></label>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="box">
+        <div class="row"><span><b class="cu">u</b></span><span class="num cu" id="oU"></span></div>
+        <div class="row"><span><b class="cv">v</b></span><span class="num cv" id="oV"></span></div>
+        <div class="row"><span>‖u‖ och ‖v‖</span><span class="num" id="oN"></span></div>
+        <div class="row"><span>Vinkeln θ mellan u och v</span><span class="num" id="oT"></span></div>
+        <div class="row"><span>Skalärprodukt u · v</span><span class="num" id="oD"></span></div>
+      </div>
+      <div class="box">
+        <div class="step">Steg 1 · Skuggans längd med tecken</div>
+        <div class="calc" id="s1"></div>
+        <div class="calc" style="color:var(--mut);font-size:15px" id="s1b"></div>
+        <p class="say" id="say"></p>
+      </div>
+      <div class="box">
+        <div class="step">Steg 2 · Ge skuggan riktning</div>
+        <div class="calc" id="s2a"></div>
+        <div class="calc" id="s2b"></div>
+      </div>
+      <div class="box">
+        <div class="step">Resultat</div>
+        <div class="final" id="fin"></div>
+        <div class="calc cq" style="margin-top:8px" id="perp"></div>
+        <div class="calc" style="color:var(--mut);font-size:15px" id="chk"></div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:clamp(28px,4vw,48px)">
+    <h2>Tre utmaningar</h2>
+    <div class="ch" id="ch"></div>
+    <div class="yay" role="status" id="yay"></div>
+    <div class="bar"><button id="bCh">Nollställ utmaningarna</button></div>
+  </div>
+</div></div>
+<noscript><p class="band">Simuleringen behöver JavaScript.</p></noscript>
+<script>
+{
+const S=40,S3=33,CY=22,AZ0=235*Math.PI/180,EL0=22*Math.PI/180;
+const f=x=>(Math.abs(x)<0.005?0:x).toLocaleString('sv-SE',{maximumFractionDigits:2});
+const par=x=>x<0?`(${f(x)})`:f(x);
+const $=id=>document.getElementById(id);
+const g=$('g');
+const st={mode:'2d',u:{x:3,y:3.5,z:0},v:{x:4,y:1,z:0},lamp:false,snap:true,zmove:false,az:AZ0,el:EL0,done:[false,false,false]};
+const is3=()=>st.mode==='3d',LIM=()=>is3()?5:6;
+const C=['x','y','z'];
+const vec=o=>`(${(is3()?C:C.slice(0,2)).map(c=>f(o[c])).join('; ')})`;
+const add=(a,b)=>({x:a.x+b.x,y:a.y+b.y,z:a.z+b.z}),mul=(a,k)=>({x:a.x*k,y:a.y*k,z:a.z*k});
+const dot3=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z,len=a=>Math.sqrt(dot3(a,a));
+const O={x:0,y:0,z:0};
+const CH=[
+  {t:'Gör skuggan osynlig',p:'Placera u och v så att projektionen blir nollvektorn.',h:'Vilken vinkel ska det vara mellan u och v?'},
+  {t:'Vänd skuggan',p:'Få projektionen att peka åt motsatt håll mot v.',h:'Vad händer med u · v när θ passerar 90°?'},
+  {t:'Längre än v',p:'Gör projektionen längre än v själv.',h:'Gör v kort och u lång, nästan parallell med v.'}];
+
+// världskoordinat -> SVG-koordinat
+function P(o){
+  if(!is3())return{x:o.x*S,y:-o.y*S};
+  const ca=Math.cos(st.az),sa=Math.sin(st.az),ce=Math.cos(st.el),se=Math.sin(st.el);
+  const x1=o.x*ca-o.y*sa,y1=o.x*sa+o.y*ca;
+  return{x:x1*S3,y:-(o.z*ce+y1*se)*S3+CY};
+}
+const n1=v=>v.toFixed(1);
+const line=(a,b,col,w,extra='')=>{const A=P(a),B=P(b);return`<line x1="${n1(A.x)}" y1="${n1(A.y)}" x2="${n1(B.x)}" y2="${n1(B.y)}" stroke="${col}" stroke-width="${w}" stroke-linecap="round" ${extra}/>`};
+const arrow=(a,b,col,id,w=4,dash)=>len(add(b,mul(a,-1)))<0.08?'':line(a,b,col,w,(dash?`stroke-dasharray="${dash}" `:'')+(id?`marker-end="url(#${id})"`:''));
+const txt=(A,t,col,cls='lbl')=>`<text class="${cls}" x="${n1(A.x)}" y="${n1(A.y)}" text-anchor="middle" dominant-baseline="middle" fill="${col}">${t}</text>`;
+const lab=(o,t,col)=>txt(P(o),t,col);
+const tipLab=(o,t,col)=>{const A=P(o),B=P(O);let dx=A.x-B.x,dy=A.y-B.y,l=Math.hypot(dx,dy)||1;return txt({x:A.x+dx/l*20,y:A.y+dy/l*20},t,col)};
+const defs=`<defs><clipPath id="cl"><rect x="-260" y="-260" width="520" height="520"/></clipPath>`+
+  [['mu','var(--u)'],['mv','var(--v)'],['mp','var(--p)']].map(([id,c])=>`<marker id="${id}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('')+`</defs>`;
+
+function grid(){
+  let s='';
+  if(!is3()){
+    for(let i=-6;i<=6;i++){s+=`<line x1="${i*S}" y1="-260" x2="${i*S}" y2="260" stroke="var(--grid)"/><line x1="-260" y1="${-i*S}" x2="260" y2="${-i*S}" stroke="var(--grid)"/>`;
+      if(i&&i%2===0)s+=`<text class="tk" x="${i*S}" y="16" text-anchor="middle">${f(i)}</text><text class="tk" x="-8" y="${-i*S+4}" text-anchor="end">${f(i)}</text>`}
+    return s+`<line x1="-260" y1="0" x2="260" y2="0" stroke="var(--axis)" stroke-width="1.5"/><line x1="0" y1="-260" x2="0" y2="260" stroke="var(--axis)" stroke-width="1.5"/><text class="tk" x="250" y="-8" text-anchor="end">x</text><text class="tk" x="8" y="-244">y</text>`;
+  }
+  const L=5;
+  for(let i=-L;i<=L;i++)s+=line({x:i,y:-L,z:0},{x:i,y:L,z:0},'var(--grid)',1)+line({x:-L,y:i,z:0},{x:L,y:i,z:0},'var(--grid)',1);
+  for(const c of C){
+    const a={x:0,y:0,z:0},b={x:0,y:0,z:0};a[c]=-L-.8;b[c]=L+.8;
+    s+=line(a,O,'var(--axis)',1.3,'stroke-dasharray="3 4"')+line(O,b,'var(--axis)',1.6);
+    const e={x:0,y:0,z:0};e[c]=L+1.25;s+=txt(P(e),c,'var(--mut)','tk');
+    for(const k of [-4,-2,2,4]){const t={x:0,y:0,z:0};t[c]=k;const T=P(t);s+=`<circle cx="${n1(T.x)}" cy="${n1(T.y)}" r="2" fill="var(--axis)"/>`;
+      s+=txt({x:T.x+(c==='z'?-12:0),y:T.y+(c==='z'?0:13)},f(k),'var(--mut)','tk')}
+  }
+  return s;
+}
+
+function render(){
+  const {u,v,lamp}=st;
+  $('root').classList.toggle('is2d',!is3());
+  const nu=len(u),nv=len(v),dot=dot3(u,v),sc=dot/nv;
+  const vh=mul(v,1/nv),p=mul(vh,sc),q=add(u,mul(p,-1)),nq=len(q);
+  const cos=nu>0.01?Math.max(-1,Math.min(1,dot/(nu*nv))):null;
+  const th=cos===null?null:Math.acos(cos);
+  const now=[nu>0.4&&Math.abs(cos)<0.015,cos!==null&&cos<-0.05,Math.abs(sc)>nv+0.05];
+  st.done=st.done.map((d,i)=>d||now[i]);
+  // normal i planet som u och v spänner upp, mot u:s sida
+  let n;
+  if(nq>0.05)n=mul(q,1/nq);
+  else{const a=Math.abs(vh.z)<0.9?{x:0,y:0,z:1}:{x:1,y:0,z:0};const c={x:vh.y*a.z-vh.z*a.y,y:vh.z*a.x-vh.x*a.z,z:vh.x*a.y-vh.y*a.x};n=mul(c,1/len(c));if(!is3())n={x:-vh.y,y:vh.x,z:0}}
+
+  let s=line(mul(vh,-20),mul(vh,20),'var(--v)',1.6,'stroke-dasharray="7 6" opacity=".75"');
+  if(is3())for(const [o,c] of [[u,'var(--u)'],[v,'var(--v)']])if(Math.abs(o.z)>0.05){const ft={x:o.x,y:o.y,z:0},F=P(ft);
+    s+=line(o,ft,c,1.5,'stroke-dasharray="2 4" opacity=".7"')+line(O,ft,c,1,'stroke-dasharray="2 4" opacity=".45"')+`<circle cx="${n1(F.x)}" cy="${n1(F.y)}" r="3" fill="${c}" opacity=".6"/>`}
+  if(lamp){
+    const U=P(u),Pp=P(p);s+=`<polygon points="0,${is3()?CY:0} ${n1(U.x)},${n1(U.y)} ${n1(Pp.x)},${n1(Pp.y)}" fill="var(--shade)"/>`;
+    const H=nq+1.2,lo=Math.min(0,sc)-2,hi=Math.max(0,sc)+2;
+    for(let t=lo;t<=hi+1e-9;t+=0.4){
+      const ft=mul(vh,t),top=add(ft,mul(n,H));let end=ft;
+      if(Math.abs(sc)>0.05&&t>=Math.min(0,sc)-1e-9&&t<=Math.max(0,sc)+1e-9)end=add(ft,mul(n,nq*t/sc));
+      s+=line(top,end,'var(--lamp)',2.5,'opacity=".7"');
+    }
+    const a=add(mul(vh,lo),mul(n,H+.15)),b=add(mul(vh,hi),mul(n,H+.15));
+    s+=line(a,b,'var(--lamp)',12)+lab(add(mul(add(a,b),.5),mul(n,.55)),'ficklampa','var(--lamp)');
+    if(Math.abs(sc)>0.05)s+=line(O,p,'var(--shade)',14);
+  }
+  if(th!==null&&nq>0.02){
+    const r=.85,pts=[];for(let i=0;i<=24;i++){const t=th*i/24;pts.push(P(add(mul(vh,r*Math.cos(t)),mul(n,r*Math.sin(t)))))}
+    s+=`<polyline points="${pts.map(o=>n1(o.x)+','+n1(o.y)).join(' ')}" fill="none" stroke="var(--mut)" stroke-width="1.5"/>`;
+    s+=lab(add(mul(vh,1.3*Math.cos(th/2)),mul(n,1.3*Math.sin(th/2))),'θ','var(--mut)');
+  }
+  if(nq>0.3){const d1=sc>0.01?mul(vh,-1):vh,k=.33;
+    const pts=[add(p,mul(d1,k)),add(add(p,mul(d1,k)),mul(n,k)),add(p,mul(n,k))].map(P);
+    s+=`<polyline points="${pts.map(o=>n1(o.x)+','+n1(o.y)).join(' ')}" fill="none" stroke="var(--q)" stroke-width="2"/>`}
+  s+=arrow(p,u,'var(--q)',null,2.5,'6 5');
+  s+=arrow(O,v,'var(--v)','mv')+arrow(O,u,'var(--u)','mu')+arrow(O,p,'var(--p)','mp',5);
+  if(nq>0.6)s+=lab(add(mul(add(p,u),.5),mul(sc>=0?vh:mul(vh,-1),.55)),'u⊥','var(--q)');
+  if(Math.abs(sc)>0.6)s+=lab(add(mul(p,.5),mul(n,-.5)),'proj','var(--p)');
+  s+=tipLab(u,'u','var(--u)')+tipLab(v,'v','var(--v)');
+  for(const [k,c] of [['u','var(--u)'],['v','var(--v)']]){const A=P(st[k]);
+    s+=`<g class="h" data-k="${k}" tabindex="0" role="button" aria-label="Spetsen på ${k}, ${vec(st[k])}. Flytta med piltangenterna${is3()?', Page Up och Page Down ändrar z':''}."><circle cx="${n1(A.x)}" cy="${n1(A.y)}" r="20" fill="transparent"/><circle cx="${n1(A.x)}" cy="${n1(A.y)}" r="8" fill="var(--paper)" stroke="${c}" stroke-width="3.5"/></g>`}
+  const ae=document.activeElement,foc=ae&&ae.dataset?ae.dataset.k:null;
+  g.innerHTML=defs+`<g clip-path="url(#cl)">${grid()}${s}</g>`;
+  if(foc){const h=g.querySelector(`[data-k="${foc}"]`);if(h)h.focus()}
+
+  const cs=is3()?C:C.slice(0,2);
+  $('oU').textContent=vec(u);$('oV').textContent=vec(v);
+  $('oN').textContent=`${f(nu)} och ${f(nv)}`;$('oT').textContent=th===null?'–':f(th*180/Math.PI)+'°';
+  $('oD').textContent=cs.map(c=>`${f(u[c])}·${par(v[c])}`).join(' + ')+` = ${f(dot)}`;
+  $('s1').innerHTML=`(u · v) / ‖v‖ = ${f(dot)} / ${f(nv)} = <b class="num cp">${f(sc)}</b>`;
+  $('s1b').textContent=`Samma sak som ‖u‖ · cos θ = ${f(nu)} · ${cos===null?'–':f(cos)}`;
+  const sign=cos===null||Math.abs(cos)<0.015?0:(dot>0?1:-1);
+  $('say').textContent=[
+    'Värdet är noll: u står vinkelrätt mot v (θ = 90°). Ficklampan ger ingen skugga alls längs v – projektionen är nollvektorn.',
+    'Värdet är positivt: θ är mindre än 90°, så skuggan pekar åt samma håll som v.',
+    'Värdet är negativt: θ är större än 90°, så skuggan pekar åt motsatt håll mot v.'][sign===0?0:sign>0?1:2]
+    +(Math.abs(sc)>nv+0.05?' Skuggan är längre än v – men den hamnar ändå på den streckade linjen som v spänner upp.':'');
+  $('s2a').innerHTML=`Enhetsvektorn v / ‖v‖ = ${vec(v)} / ${f(nv)} = <b class="num cv">${vec(vh)}</b>`;
+  $('s2b').innerHTML=`${f(sc)} · ${vec(vh)} = <b class="num cp">${vec(p)}</b>`;
+  $('fin').innerHTML=`proj<sub>v</sub>(u) = ${vec(p)}`;
+  $('perp').innerHTML=`u⊥ = u − proj<sub>v</sub>(u) = <b class="num">${vec(q)}</b>`;
+  $('chk').textContent=`Kontroll: u⊥ · v = ${f(dot3(q,v))}, alltså vinkelrät mot v.`;
+  $('hint').textContent=is3()
+    ?'3D: dra i en spets för att flytta den i xy-planet. Håll Shift, eller välj ”Dra i: höjd z”, för att flytta den uppåt eller nedåt. Dra på en tom yta för att vrida vyn. De prickade linjerna visar var spetsarna står ovanför xy-planet.'
+    :(lamp?'Ljuset faller vinkelrätt mot linjen genom v. Där u står i vägen blir det skugga på linjen – och skuggan är exakt projektionen av u på v.':'Tips: tryck på ficklampan och se projektionen som en skugga. Spetsarna kan också flyttas med Tab och piltangenterna.');
+  $('ch').innerHTML=CH.map((c,i)=>`<div class="c${st.done[i]?' done':''}"><div class="tick" aria-hidden="true">${st.done[i]?'✓':''}</div><div><h3>${c.t}</h3><p>${c.p}</p><div class="live">${st.done[i]?'Klarad! ':''}${now[i]?'Uppfyllt just nu.':'Ledtråd: '+c.h}</div></div></div>`).join('');
+  $('yay').textContent=st.done.every(Boolean)?'Alla tre klarade. Kan du förklara för en kompis varför varje lösning fungerar?':'';
+  const pr=(id,on,t)=>{$(id).setAttribute('aria-pressed',on);if(t)$(id).textContent=t};
+  pr('bLamp',lamp,lamp?'Dölj ficklampa/skugga':'Visa ficklampa/skugga');
+  pr('bSnap',st.snap,'Fäst mot rutnätet: '+(st.snap?'på':'av'));
+  pr('bZ',st.zmove,'Dra i: '+(st.zmove?'höjd z':'xy-planet'));
+  pr('b2',!is3());pr('b3',is3());
+  $('plot').classList.toggle('rot',is3());
+  for(const k of ['u','v'])for(const c of C){const el=$('i'+k+c);if(el!==document.activeElement)el.value=+st[k][c].toFixed(2)}
+}
+
+function put(k,o,raw){
+  const m=LIM(),r={};
+  for(const c of C){let x=Math.max(-m,Math.min(m,o[c]||0));x=(st.snap&&!raw)?Math.round(x*2)/2:Math.round(x*100)/100;r[c]=x}
+  if(!is3())r.z=0;
+  if(k==='v'&&len(r)<0.5)return;
+  const cur=st[k];if(C.every(c=>cur[c]===r[c]))return;
+  st[k]=r;render();
+}
+let drag=null;
+const svgXY=e=>{const pt=g.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;return pt.matrixTransform(g.getScreenCTM().inverse())};
+g.addEventListener('pointerdown',e=>{
+  const h=e.target.closest('.h');
+  if(h)drag={k:h.dataset.k};else if(is3())drag={rot:1,x:e.clientX,y:e.clientY};else return;
+  e.preventDefault();g.setPointerCapture(e.pointerId)});
+g.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  if(drag.rot){st.az-=(e.clientX-drag.x)*0.008;st.el=Math.max(0.17,Math.min(1.45,st.el+(e.clientY-drag.y)*0.008));drag.x=e.clientX;drag.y=e.clientY;render();return}
+  const q=svgXY(e),o=st[drag.k];
+  if(!is3())return put(drag.k,{x:q.x/S,y:-q.y/S,z:0});
+  const ca=Math.cos(st.az),sa=Math.sin(st.az),ce=Math.cos(st.el),se=Math.sin(st.el);
+  const a=q.x/S3,up=-(q.y-CY)/S3;
+  if(st.zmove||e.shiftKey){const y1=o.x*sa+o.y*ca;put(drag.k,{x:o.x,y:o.y,z:(up-y1*se)/ce})}
+  else{const b=(up-o.z*ce)/se;put(drag.k,{x:a*ca+b*sa,y:-a*sa+b*ca,z:o.z})}
+});
+const stop=()=>{drag=null};g.addEventListener('pointerup',stop);g.addEventListener('pointercancel',stop);
+g.addEventListener('keydown',e=>{const h=e.target.closest('.h');if(!h)return;const k=h.dataset.k,o=st[k],d=st.snap?0.5:0.1;
+  const m={ArrowLeft:[-d,0,0],ArrowRight:[d,0,0],ArrowUp:[0,d,0],ArrowDown:[0,-d,0],PageUp:[0,0,d],PageDown:[0,0,-d]}[e.key];
+  if(m){e.preventDefault();put(k,{x:o.x+m[0],y:o.y+m[1],z:o.z+m[2]})}});
+for(const k of ['u','v'])for(const c of C)$('i'+k+c).addEventListener('input',e=>{const x=parseFloat(String(e.target.value).replace(',','.'));if(!isFinite(x))return;put(k,{...st[k],[c]:x},true)});
+const setMode=m=>{if(m===st.mode)return;st.mode=m;
+  if(m==='2d'){st.u.z=0;st.v.z=0;if(len(st.v)<0.5)st.v={x:4,y:1,z:0}}
+  else{if(!st.u.z&&!st.v.z)st.u.z=2;for(const k of ['u','v'])for(const c of C)st[k][c]=Math.max(-5,Math.min(5,st[k][c]))}
+  render()};
+$('b2').onclick=()=>setMode('2d');$('b3').onclick=()=>setMode('3d');
+$('bLamp').onclick=()=>{st.lamp=!st.lamp;render()};
+$('bSnap').onclick=()=>{st.snap=!st.snap;render()};
+$('bZ').onclick=()=>{st.zmove=!st.zmove;render()};
+$('bView').onclick=()=>{st.az=AZ0;st.el=EL0;render()};
+$('bReset').onclick=()=>{st.u={x:3,y:3.5,z:is3()?2:0};st.v={x:4,y:1,z:0};render()};
+$('bCh').onclick=()=>{st.done=[false,false,false];render()};
+render();
+}
+</script>
+</body>
+</html>
